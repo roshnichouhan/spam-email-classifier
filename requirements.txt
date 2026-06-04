@@ -60,7 +60,7 @@ httptools==0.7.1
 httpx==0.28.1
 httpx-sse==0.4.3
 huggingface-hub==0.36.0
-idna==3.11
+idna==3.15
 ImageIO==2.37.2
 imbalanced-learn==0.14.1
 importlib_metadata==8.7.1
