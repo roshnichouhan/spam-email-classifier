@@ -1,26 +1,76 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import pickle
-from src.predict import predict_message
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from pathlib import Path
+import joblib
 
-app = FastAPI(title="Spam Classifier API")
+app = FastAPI(
+    title="Spam Email Detection API",
+    description="Machine Learning API for detecting spam emails using a trained classification model.",
+    version="1.0.0"
+)
 
-# load model
-model = pickle.load(open("models/model.pkl", "rb"))
+# ==================================================
+# LOAD MODEL
+# ==================================================
 
-class Request(BaseModel):
-    message: str
+MODEL_PATH = Path("models/model.pkl")
 
+try:
+    model = joblib.load(MODEL_PATH)
+except Exception as e:
+    raise RuntimeError(f"Failed to load model: {e}")
+
+
+# ==================================================
+# REQUEST SCHEMA
+# ==================================================
+
+class EmailRequest(BaseModel):
+    email_text: str = Field(
+        ...,
+        min_length=5,
+        description="Email content to classify as Spam or Not Spam"
+    )
+
+
+# ==================================================
+# ROUTES
+# ==================================================
 
 @app.get("/")
 def home():
-    return {"message": "API Running Successfully 🚀"}
+    return {
+        "project": "Spam Email Classifier",
+        "status": "Running",
+        "model_version": "1.0",
+        "api": "FastAPI"
+    }
+
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "Healthy",
+        "service": "Spam Detection API"
+    }
 
 
 @app.post("/predict")
-def predict(req: Request):
-    result = predict_message(model, req.message)
+def predict(email: EmailRequest):
 
-    return {
-        "prediction": "Spam" if result == 1 else "Not Spam"
-    }
+    try:
+        prediction = model.predict([email.email_text])[0]
+
+        result = "Spam" if prediction == 1 else "Not Spam"
+
+        return {
+            "email_text": email.email_text,
+            "prediction": result,
+            "status": "Success"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Prediction failed: {str(e)}"
+        )
